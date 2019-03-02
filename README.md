@@ -32,6 +32,29 @@ The `brew.yaml` format is a list of "calls" for homebrew to execute. Each call i
 
 > At this time, the `state` parameter has no meaning and is assumed to be `present`.
 
+By way of example, here is a complete `brew.yaml` file:
+
+```yaml
+---
+- homebrew_tap:
+  name: hakamadare/goenv
+
+- homebrew_cask:
+  name: docker
+
+- homebrew_cask:
+  name: sublime-text
+
+- homebrew_formula:
+  name: bash
+
+- homebrew_formula:
+  name: bash-completion
+
+- homebrew_pip:
+  name: yapf
+```
+
 #### homebrew_tap
 
 Homebrew taps can be managed by using the `homebrew_tap` type.
