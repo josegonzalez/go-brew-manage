@@ -124,7 +124,7 @@ docker-image:
 	docker build --rm -q -f Dockerfile.hub -t $(IMAGE_NAME):$(DOCKER_VERSION) .
 
 release: build
-	go get -u github.com/progrium/gh-release/...
+	go get -u github.com/progrium/gh-release/...@v2.2.1
 	rm -rf release && mkdir release
 	tar -zcf release/$(NAME)_$(VERSION)_linux_$(HARDWARE).tgz -C build/linux $(NAME)
 	tar -zcf release/$(NAME)_$(VERSION)_darwin_$(HARDWARE).tgz -C build/darwin $(NAME)
