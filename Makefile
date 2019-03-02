@@ -4,7 +4,7 @@ MAINTAINER = josegonzalez
 MAINTAINER_NAME = Jose Diaz-Gonzalez
 REPOSITORY = go-brew-manage
 HARDWARE = $(shell uname -m)
-BASE_VERSION ?= 0.0.1
+BASE_VERSION ?= 0.1.0
 IMAGE_NAME ?= $(MAINTAINER)/$(REPOSITORY)
 PACKAGECLOUD_REPOSITORY ?= josegonzalez/packages-beta
 
