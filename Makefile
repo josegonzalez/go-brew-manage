@@ -4,6 +4,7 @@ MAINTAINER = josegonzalez
 MAINTAINER_NAME = Jose Diaz-Gonzalez
 REPOSITORY = go-brew-manage
 HARDWARE = $(shell uname -m)
+SYSTEM_NAME  = $(shell uname -s | tr '[:upper:]' '[:lower:]')
 BASE_VERSION ?= 0.1.0
 IMAGE_NAME ?= $(MAINTAINER)/$(REPOSITORY)
 PACKAGECLOUD_REPOSITORY ?= josegonzalez/packages-beta
@@ -123,14 +124,19 @@ circleci:
 docker-image:
 	docker build --rm -q -f Dockerfile.hub -t $(IMAGE_NAME):$(DOCKER_VERSION) .
 
-release: build
-	go get -u github.com/progrium/gh-release/...@v2.2.1
+gh-release:
+	mkdir -p build
+	curl -o build/gh-release.tgz -sL https://github.com/progrium/gh-release/releases/download/v2.2.1/gh-release_2.2.1_$(SYSTEM_NAME)_$(HARDWARE).tgz
+	tar xf build/gh-release.tgz -C build
+	chmod +x build/gh-release
+
+release: build gh-release
 	rm -rf release && mkdir release
 	tar -zcf release/$(NAME)_$(VERSION)_linux_$(HARDWARE).tgz -C build/linux $(NAME)
 	tar -zcf release/$(NAME)_$(VERSION)_darwin_$(HARDWARE).tgz -C build/darwin $(NAME)
 	cp build/deb/$(NAME)_$(VERSION)_amd64.deb release/$(NAME)_$(VERSION)_amd64.deb
 	cp build/rpm/$(NAME)-$(VERSION)-1.x86_64.rpm release/$(NAME)-$(VERSION)-1.x86_64.rpm
-	gh-release create $(MAINTAINER)/$(REPOSITORY) $(VERSION) $(shell git rev-parse --abbrev-ref HEAD)
+	build/gh-release create $(MAINTAINER)/$(REPOSITORY) $(VERSION) $(shell git rev-parse --abbrev-ref HEAD)
 
 release-packagecloud:
 	@$(MAKE) release-packagecloud-deb
