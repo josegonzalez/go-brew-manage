@@ -6,6 +6,7 @@ import (
 	"github.com/ghodss/yaml"
 	"io/ioutil"
 	"log"
+	"os"
 	"os/exec"
 	"strings"
 )
@@ -65,14 +66,16 @@ func main() {
 	pipInstallArguments := []string{"pip", "install"}
 	installedPipModifier := func(l []string) []string { return l }
 	if len(pipPackages) > 0 {
-		stdout, err := exec.Command("brew", "pip", "--version").Output()
+		cmd := exec.Command("brew", "pip", "--version")
+		cmd.Env = os.Environ()
+		cmd.Env = append(cmd.Env, "HOMEBREW_NO_AUTO_UPDATE=1")
+		stdout, err := cmd.Output()
 		if err != nil {
 			fmt.Printf("pip: state=error %v\n", err)
 			return
 		}
 
 		if strings.HasPrefix(string(stdout), "brew pip v0.4.") {
-			println("oh boy here comes the pain")
 			pipListArguments = []string{"list"}
 			pipInstallArguments = []string{"pip"}
 			installedPipModifier = func(l []string) []string {
@@ -105,7 +108,10 @@ func manageBrewCollection(entries BrewYaml, entryType string, listArguments []st
 	}
 
 	fmt.Printf("%s: fetching\n", entryType)
-	stdout, err := exec.Command("brew", listArguments...).Output()
+	cmd := exec.Command("brew", listArguments...)
+	cmd.Env = os.Environ()
+	cmd.Env = append(cmd.Env, "HOMEBREW_NO_AUTO_UPDATE=1")
+	stdout, err := cmd.Output()
 	if err != nil {
 		fmt.Printf("%s: state=error %v\n", entryType, err)
 		return false
@@ -130,7 +136,10 @@ func manageBrewCollection(entries BrewYaml, entryType string, listArguments []st
 		}
 
 		installArguments = append(installArguments, name)
-		installOutput, err := exec.Command("brew", installArguments...).CombinedOutput()
+		cmd := exec.Command("brew", installArguments...)
+		cmd.Env = os.Environ()
+		cmd.Env = append(cmd.Env, "HOMEBREW_NO_AUTO_UPDATE=1")
+		installOutput, err := cmd.CombinedOutput()
 		if err != nil {
 			fmt.Printf(" state=install-error %v\n", string(installOutput))
 			hasErrors = true
