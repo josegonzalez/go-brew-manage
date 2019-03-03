@@ -58,7 +58,10 @@ func main() {
 
 	installedModifier := func(l []string) []string { return l }
 
+	brewUpdate()
 	manageBrewCollection(taps, "task", []string{"tap", "--quieter"}, []string{"tap", "--quieter"}, installedModifier)
+	brewUpdate()
+
 	manageBrewCollection(casks, "cask", []string{"cask", "list"}, []string{"cask", "install"}, installedModifier)
 	manageBrewCollection(formulae, "formula", []string{"list"}, []string{"install"}, installedModifier)
 
@@ -91,6 +94,14 @@ func main() {
 	}
 
 	manageBrewCollection(pipPackages, "pip", pipListArguments, pipInstallArguments, installedPipModifier)
+}
+
+func brewUpdate() {
+	fmt.Println("brew: updating")
+	stdout, err := exec.Command("brew", "update").CombinedOutput()
+	if err != nil {
+		fmt.Printf("pip: state=error %v\n", stdout)
+	}
 }
 
 func stringInSlice(a string, list []string) bool {
