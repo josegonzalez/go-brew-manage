@@ -47,10 +47,47 @@ func main() {
 		}
 	}
 
-	installTaps(taps, casks)
-	installCasks(casks)
-	installFormulae(formulae, pipPackages)
-	installPipPackages(pipPackages)
+	if len(casks) > 0 {
+		taps = appendCaskTaps(taps)
+	}
+
+	if len(pipPackages) > 0 {
+		formulae = appendPythonFormula(formulae)
+	}
+
+	installedModifier := func(l []string) []string { return l }
+
+	manageBrewCollection(taps, "task", []string{"tap", "--quieter"}, []string{"tap", "--quieter"}, installedModifier)
+	manageBrewCollection(casks, "cask", []string{"cask", "list"}, []string{"cask", "install"}, installedModifier)
+	manageBrewCollection(formulae, "formula", []string{"list"}, []string{"install"}, installedModifier)
+
+	pipListArguments := []string{"pip", "list"}
+	pipInstallArguments := []string{"pip", "install"}
+	installedPipModifier := func(l []string) []string { return l }
+	if len(pipPackages) > 0 {
+		stdout, err := exec.Command("brew", "pip", "--version").Output()
+		if err != nil {
+			fmt.Printf("pip: state=error %v\n", err)
+			return
+		}
+
+		if strings.HasPrefix(string(stdout), "brew pip v0.4.") {
+			println("oh boy here comes the pain")
+			pipListArguments = []string{"list"}
+			pipInstallArguments = []string{"pip"}
+			installedPipModifier = func(l []string) []string {
+				var installedPipPackages []string
+				for _, formula := range l {
+					if strings.HasPrefix(formula, "pip-") {
+						installedPipPackages = append(installedPipPackages, formula)
+					}
+				}
+				return installedPipPackages
+			}
+		}
+	}
+
+	manageBrewCollection(pipPackages, "pip", pipListArguments, pipInstallArguments, installedPipModifier)
 }
 
 func stringInSlice(a string, list []string) bool {
@@ -62,35 +99,38 @@ func stringInSlice(a string, list []string) bool {
 	return false
 }
 
-func installTaps(taps BrewYaml, casks BrewYaml) bool {
-	fmt.Println("taps: fetching")
-	stdout, err := exec.Command("brew", "tap", "--quieter").Output()
+func manageBrewCollection(entries BrewYaml, entryType string, listArguments []string, installArguments []string, installedModifier func(l []string) []string) bool {
+	if len(entries) == 0 {
+		return true
+	}
+
+	fmt.Printf("%s: fetching\n", entryType)
+	stdout, err := exec.Command("brew", listArguments...).Output()
 	if err != nil {
-		fmt.Printf("tap: state=error %v\n", err)
+		fmt.Printf("%s: state=error %v\n", entryType, err)
 		return false
 	}
-	installedTaps := strings.Split(string(stdout), "\n")
-
-	if len(casks) > 0 {
-		taps = appendCaskTaps(taps)
-	}
+	installedEntries := strings.Split(string(stdout), "\n")
+	installedEntries = installedModifier(installedEntries)
 
 	hasErrors := false
-	for _, entry := range taps {
+	for _, entry := range entries {
 		value, ok := entry["name"]
 		if !ok {
-			fmt.Printf("tap: state=name-error %v\n", entry)
+			fmt.Printf("%s: state=name-error %v\n", entryType, entry)
 			hasErrors = true
 			continue
 		}
 
 		name := value.(string)
-		fmt.Printf("tap: name=%v", name)
-		if stringInSlice(name, installedTaps) {
+		fmt.Printf("%s: name=%v", entryType, name)
+		if stringInSlice(name, installedEntries) {
 			fmt.Printf(" state=present\n")
 			continue
 		}
-		installOutput, err := exec.Command("brew", "tap", "--quieter", name).Output()
+
+		installArguments = append(installArguments, name)
+		installOutput, err := exec.Command("brew", installArguments...).CombinedOutput()
 		if err != nil {
 			fmt.Printf(" state=install-error %v\n", string(installOutput))
 			hasErrors = true
@@ -98,7 +138,6 @@ func installTaps(taps BrewYaml, casks BrewYaml) bool {
 		}
 		fmt.Printf(" state=installed\n")
 	}
-
 	return hasErrors
 }
 
@@ -125,157 +164,25 @@ func appendCaskTaps(taps BrewYaml) BrewYaml {
 	return taps
 }
 
-func installCasks(casks BrewYaml) bool {
-	fmt.Println("cask: fetching")
-	stdout, err := exec.Command("brew", "cask", "list").Output()
-	if err != nil {
-		fmt.Printf("cask: state=error %v\n", err)
-		return false
-	}
-	installedCasks := strings.Split(string(stdout), "\n")
-
-	hasErrors := false
-	for _, entry := range casks {
-		value, ok := entry["name"]
-		if !ok {
-			fmt.Printf("cask: state=name-error %v\n", entry)
-			hasErrors = true
-			continue
-		}
-
-		name := value.(string)
-		fmt.Printf("cask: name=%v", name)
-		if stringInSlice(name, installedCasks) {
-			fmt.Printf(" state=present\n")
-			continue
-		}
-		installOutput, err := exec.Command("brew", "cask", "install", name).Output()
-		if err != nil {
-			fmt.Printf(" state=install-error %v\n", string(installOutput))
-			hasErrors = true
-			continue
-		}
-		fmt.Printf(" state=installed\n")
-	}
-
-	return hasErrors
-}
-
-func installFormulae(formulae BrewYaml, pipPackages BrewYaml) bool {
-	fmt.Println("formula: fetching")
-	stdout, err := exec.Command("brew", "list").Output()
-	if err != nil {
-		fmt.Printf("formula: state=error %v\n", err)
-		return false
-	}
-	installedCasks := strings.Split(string(stdout), "\n")
-
-	if len(pipPackages) > 0 {
-		formulae = appendPythonFormula(formulae)
-	}
-
-	hasErrors := false
-	for _, entry := range formulae {
-		value, ok := entry["name"]
-		if !ok {
-			fmt.Printf("formula: state=name-error %v\n", entry)
-			hasErrors = true
-			continue
-		}
-
-		name := value.(string)
-		fmt.Printf("formula: name=%v", name)
-		if stringInSlice(name, installedCasks) {
-			fmt.Printf(" state=present\n")
-			continue
-		}
-		installOutput, err := exec.Command("brew", "install", name).Output()
-		if err != nil {
-			fmt.Printf(" state=install-error %v\n", string(installOutput))
-			hasErrors = true
-			continue
-		}
-		fmt.Printf(" state=installed\n")
-	}
-
-	return hasErrors
-}
-
 func appendPythonFormula(formulae BrewYaml) BrewYaml {
-	addPython := true
-	addBrewPip := true
+	pythonFormulaNames := []string{"python", "brew-pip"}
+	var formulaNames []string
 	for _, entry := range formulae {
 		value, ok := entry["name"]
 		if !ok {
 			continue
 		}
+		formulaNames = append(formulaNames, value.(string))
+	}
 
-		if value.(string) == "python" {
-			addPython = false
-			continue
+	for _, formulaName := range pythonFormulaNames {
+		if !stringInSlice(formulaName, formulaNames) {
+			formula := make(map[string]interface{})
+			formula["homebrew_formula"] = nil
+			formula["name"] = formulaName
+			formulae = append(formulae, formula)
 		}
-
-		if value.(string) == "brew-pip" {
-			addBrewPip = false
-			continue
-		}
 	}
 
-	if addPython {
-		tap := make(map[string]interface{})
-		tap["homebrew_formula"] = nil
-		tap["name"] = "python"
-		formulae = append(formulae, tap)
-	}
-
-	if addBrewPip {
-		tap := make(map[string]interface{})
-		tap["homebrew_formula"] = nil
-		tap["name"] = "brew-pip"
-		formulae = append(formulae, tap)
-	}
 	return formulae
-}
-
-func installPipPackages(pipPackages BrewYaml) bool {
-	fmt.Println("pip: fetching")
-	stdout, err := exec.Command("brew", "list").Output()
-	if err != nil {
-		fmt.Printf("tap: state=error %v\n", err)
-		return false
-	}
-
-	installedFormula := strings.Split(string(stdout), "\n")
-	var installedPipPackages []string
-	for _, formula := range installedFormula {
-		if strings.HasPrefix(formula, "pip-") {
-			installedPipPackages = append(installedPipPackages, formula)
-		}
-	}
-
-	hasErrors := false
-	for _, entry := range pipPackages {
-		value, ok := entry["name"]
-		if !ok {
-			fmt.Printf("pip: state=name-error %v\n", entry)
-			hasErrors = true
-			continue
-		}
-
-		name := value.(string)
-		fmt.Printf("pip: name=%v", name)
-		if stringInSlice(fmt.Sprintf("pip-%s", name), installedPipPackages) {
-			fmt.Printf(" state=present\n")
-			continue
-		}
-		installOutput, err := exec.Command("brew", "pip", name).Output()
-		if err != nil {
-			fmt.Printf(" state=install-error %v\n", string(installOutput))
-			hasErrors = true
-			continue
-		}
-		fmt.Printf(" state=installed\n")
-	}
-
-	return hasErrors
 }
