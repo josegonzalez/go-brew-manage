@@ -34,6 +34,7 @@ func main() {
 
 	var casks BrewYaml
 	var formulae BrewYaml
+	var gemPackages BrewYaml
 	var pipPackages BrewYaml
 	var taps BrewYaml
 	for _, entry := range settings {
@@ -41,6 +42,8 @@ func main() {
 			casks = append(casks, entry)
 		} else if _, ok := entry["homebrew_formula"]; ok {
 			formulae = append(formulae, entry)
+		} else if _, ok := entry["homebrew_gem"]; ok {
+			gemPackages = append(gemPackages, entry)
 		} else if _, ok := entry["homebrew_pip"]; ok {
 			pipPackages = append(pipPackages, entry)
 		} else if _, ok := entry["homebrew_tap"]; ok {
@@ -53,7 +56,11 @@ func main() {
 	}
 
 	if len(pipPackages) > 0 {
-		formulae = appendPythonFormula(formulae)
+		formulae = appendFormula(formulae, []string{"python", "brew-pip"})
+	}
+
+	if len(gemPackages) > 0 {
+		formulae = appendFormula(formulae, []string{"brew-gem"})
 	}
 
 	installedModifier := func(l []string) []string { return l }
@@ -85,7 +92,7 @@ func main() {
 				var installedPipPackages []string
 				for _, formula := range l {
 					if strings.HasPrefix(formula, "pip-") {
-						installedPipPackages = append(installedPipPackages, formula)
+						installedPipPackages = append(installedPipPackages, strings.TrimPrefix(formula, "pip-"))
 					}
 				}
 				return installedPipPackages
@@ -94,6 +101,20 @@ func main() {
 	}
 
 	manageBrewCollection(pipPackages, "pip", pipListArguments, pipInstallArguments, installedPipModifier)
+
+	gemListArguments := []string{"list"}
+	gemInstallArguments := []string{"gem", "install"}
+	installedGemModifier := func(l []string) []string {
+		var installedGemPackages []string
+		for _, formula := range l {
+			if strings.HasPrefix(formula, "gem-") {
+				installedGemPackages = append(installedGemPackages, strings.TrimPrefix(formula, "gem-"))
+			}
+		}
+		return installedGemPackages
+	}
+
+	manageBrewCollection(gemPackages, "gem", gemListArguments, gemInstallArguments, installedGemModifier)
 }
 
 func brewUpdate() {
@@ -184,8 +205,7 @@ func appendCaskTaps(taps BrewYaml) BrewYaml {
 	return taps
 }
 
-func appendPythonFormula(formulae BrewYaml) BrewYaml {
-	pythonFormulaNames := []string{"python", "brew-pip"}
+func appendFormula(formulae BrewYaml, formulaeToAppend []string) BrewYaml {
 	var formulaNames []string
 	for _, entry := range formulae {
 		value, ok := entry["name"]
@@ -195,7 +215,7 @@ func appendPythonFormula(formulae BrewYaml) BrewYaml {
 		formulaNames = append(formulaNames, value.(string))
 	}
 
-	for _, formulaName := range pythonFormulaNames {
+	for _, formulaName := range formulaeToAppend {
 		if !stringInSlice(formulaName, formulaNames) {
 			formula := make(map[string]interface{})
 			formula["homebrew_formula"] = nil
