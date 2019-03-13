@@ -5,7 +5,7 @@ MAINTAINER_NAME = Jose Diaz-Gonzalez
 REPOSITORY = go-brew-manage
 HARDWARE = $(shell uname -m)
 SYSTEM_NAME  = $(shell uname -s | tr '[:upper:]' '[:lower:]')
-BASE_VERSION ?= 0.1.0
+BASE_VERSION ?= 0.2.0
 IMAGE_NAME ?= $(MAINTAINER)/$(REPOSITORY)
 PACKAGECLOUD_REPOSITORY ?= josegonzalez/packages-beta
 
@@ -22,9 +22,7 @@ version:
 	@echo "$(VERSION)"
 
 define PACKAGE_DESCRIPTION
-Utility that allows users to interact with Procfile files
-Procfiles may be specified on stdin or via a flag, but
-must always be valid yaml.
+Utility that allows users to install packages via homebrew
 endef
 
 export PACKAGE_DESCRIPTION
@@ -83,7 +81,7 @@ build/deb/$(NAME)_$(VERSION)_amd64.deb: build/linux/$(NAME)
 		--input-type dir \
 		--license 'MIT License' \
 		--maintainer "$(MAINTAINER_NAME) <$(EMAIL)>" \
-		--name procfile-util \
+		--name $(NAME) \
 		--output-type deb \
 		--package build/deb/$(NAME)_$(VERSION)_amd64.deb \
 		--url "https://github.com/$(MAINTAINER)/$(REPOSITORY)" \
@@ -103,7 +101,7 @@ build/rpm/$(NAME)-$(VERSION)-1.x86_64.rpm: build/linux/$(NAME)
 		--input-type dir \
 		--license 'MIT License' \
 		--maintainer "$(MAINTAINER_NAME) <$(EMAIL)>" \
-		--name procfile-util \
+		--name $(NAME) \
 		--output-type rpm \
 		--package build/rpm/$(NAME)-$(VERSION)-1.x86_64.rpm \
 		--rpm-os linux \
