@@ -18,13 +18,9 @@ jobs:
           command: |
             make build-in-docker
             [[ -d build ]]  && sudo chown -R circleci:circleci build
-      - run:
-          command: |
-            ls -lah
-            make store-artifacts
       - run: make validate-in-docker
       - store_artifacts:
-          path: /tmp/artifacts
+          path: build
           destination: build
       - run:
           command: |
