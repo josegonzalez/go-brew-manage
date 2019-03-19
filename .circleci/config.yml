@@ -27,4 +27,4 @@ jobs:
             if [[ "$CIRCLE_BRANCH" == "release" ]]; then
               make release-in-docker
             fi
-            make release-packagecloud-in-docker
+            make release-packagecloud-in-docker || true
