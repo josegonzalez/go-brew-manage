@@ -121,7 +121,7 @@ func brewUpdate() {
 	fmt.Println("brew: updating")
 	stdout, err := exec.Command("brew", "update").CombinedOutput()
 	if err != nil {
-		fmt.Printf("pip: state=error %v\n", stdout)
+		fmt.Printf("brew: state=error %v\n", stdout)
 	}
 }
 
